@@ -37,4 +37,22 @@ public class TileList {
 		return tiles;
 	}
 	
+	public TileList createAllVariants() {
+		ArrayList<TileComposite> newTiles = new ArrayList<>();
+		
+		for (TileComposite tc : tiles) {
+			if (tc.isRotatable()) {
+				TileComposite clone = tc.clone();
+				for (int i = 0; i < 4; i++) {
+					clone.rotate90Deg();
+					newTiles.add(clone.clone());
+				}
+			}
+		}
+		
+		tiles.addAll(newTiles);
+		
+		return this;
+	}
+	
 }

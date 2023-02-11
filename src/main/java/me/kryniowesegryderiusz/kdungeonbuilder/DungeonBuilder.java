@@ -36,8 +36,8 @@ public class DungeonBuilder {
 		return this;
 	}
 
-	public DungeonBuilder addTileTemplates(ArrayList<TileComposite> tileTemplates) {
-		this.tileTemplates.addAll(tileTemplates);
+	public DungeonBuilder addTileTemplates(TileList tileTemplates) {
+		this.tileTemplates.addAll(tileTemplates.createAllVariants().getAll());
 		return this;
 	}
 	

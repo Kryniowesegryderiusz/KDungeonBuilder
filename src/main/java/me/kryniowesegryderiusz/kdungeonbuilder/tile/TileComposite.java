@@ -6,6 +6,7 @@ import java.util.Arrays;
 import lombok.Getter;
 import lombok.Setter;
 import me.kryniowesegryderiusz.kdungeonbuilder.coordinates.Coordinates;
+import me.kryniowesegryderiusz.kdungeonbuilder.door.Door;
 import me.kryniowesegryderiusz.kdungeonbuilder.door.DoorList;
 
 /**
@@ -35,6 +36,9 @@ public class TileComposite {
 	private int sizeX;
 	@Getter
 	private int sizeZ;
+	
+	@Getter
+	private boolean rotatable = false;
 
 	@Getter
 	private Tiles tiles;
@@ -74,6 +78,28 @@ public class TileComposite {
 				tiles.getTiles()[nox][noz].initCoordinates(compositeCoordinates.getX() + nox * STANDARD_LENGTH,
 						compositeCoordinates.getZ() + noz * STANDARD_LENGTH);
 			}
+		}
+		return this;
+	}
+	
+	public TileComposite setRotatable(boolean rotatable) {
+		this.rotatable = rotatable;
+		return this;
+	}
+	
+	public TileComposite rotate90Deg() {
+		this.tiles.rotate90Deg();
+		return this;
+	}
+	
+	public TileComposite addDoor(int x, int z, Door door) {
+		tiles.getTiles()[x][z].getDoors().addDoor(door);
+		return this;
+	}
+	
+	public TileComposite addDoor(int x, int z, Door... doors) {
+		for (Door door : doors) {
+			addDoor(x,z,door);
 		}
 		return this;
 	}
@@ -140,6 +166,22 @@ public class TileComposite {
 			}
 
 			return borders;
+		}
+		
+		public void rotate90Deg() {
+		    final int M = tiles.length;
+		    final int N = tiles[0].length;
+		    Tile[][] rotated = new Tile[N][M];
+		    for (int r = 0; r < M; r++) {
+		        for (int c = 0; c < N; c++) {
+		        	rotated[c][M-1-r] = tiles[r][c];
+		        	rotated[c][M-1-r].getDoors().rotate90Deg();
+		        }
+		    }
+		    int temp = sizeX;
+		    sizeX = sizeZ;
+		    sizeZ = temp;
+		    this.tiles = rotated;
 		}
 
 	}

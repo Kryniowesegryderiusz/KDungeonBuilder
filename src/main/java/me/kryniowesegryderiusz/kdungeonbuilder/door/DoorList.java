@@ -29,4 +29,12 @@ public class DoorList {
 		return new DoorList().addDoors(doors);
 	}
 
+	public void rotate90Deg() {
+		ArrayList<Door> newDoors = new ArrayList<Door>();
+		for (Door d : doors) {
+			newDoors.add(d.getRotateClockwise90Deg());
+		}
+		doors = newDoors;
+	}
+
 }
