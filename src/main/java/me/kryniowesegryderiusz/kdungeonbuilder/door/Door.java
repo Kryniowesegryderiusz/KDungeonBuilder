@@ -4,10 +4,10 @@ import java.util.HashMap;
 
 public enum Door {
 	
-	N, 
-	S,
-	W, 
-	E;
+	POSITIVE_X,
+	NEGATIVE_X,
+	POSITIVE_Z,
+	NEGATIVE_Z;
 	
 	private Door() {
 		
@@ -20,10 +20,10 @@ public enum Door {
 	private static HashMap<Door, Door> opposites = new HashMap<>();
 	
 	static {
-		opposites.put(Door.N, Door.S);
-		opposites.put(Door.S, Door.N);
-		opposites.put(Door.W, Door.E);
-		opposites.put(Door.E, Door.W);
+		opposites.put(Door.POSITIVE_X, Door.NEGATIVE_X);
+		opposites.put(Door.NEGATIVE_X, Door.POSITIVE_X);
+		opposites.put(Door.POSITIVE_Z, Door.NEGATIVE_Z);
+		opposites.put(Door.NEGATIVE_Z, Door.POSITIVE_Z);
 	}
 	
 	public Door getOpposite() {
@@ -37,10 +37,10 @@ public enum Door {
 	private static HashMap<Door, Door> clockwiseRotate90Deg = new HashMap<>();
 	
 	static {
-		clockwiseRotate90Deg.put(Door.N, Door.W);
-		clockwiseRotate90Deg.put(Door.S, Door.E);
-		clockwiseRotate90Deg.put(Door.W, Door.S);
-		clockwiseRotate90Deg.put(Door.E, Door.N);
+		clockwiseRotate90Deg.put(Door.POSITIVE_X, Door.POSITIVE_Z);
+		clockwiseRotate90Deg.put(Door.POSITIVE_Z, Door.NEGATIVE_X);
+		clockwiseRotate90Deg.put(Door.NEGATIVE_X, Door.NEGATIVE_Z);
+		clockwiseRotate90Deg.put(Door.NEGATIVE_Z, Door.POSITIVE_X);
 	}
 	
 	public Door getRotateClockwise90Deg() {

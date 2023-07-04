@@ -1,10 +1,10 @@
 package me.kryniowesegryderiusz.kdungeonbuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 import lombok.Getter;
-import lombok.Setter;
 import me.kryniowesegryderiusz.kdungeonbuilder.coordinates.CoordinatesList;
 import me.kryniowesegryderiusz.kdungeonbuilder.coordinates.Coordinates;
 import me.kryniowesegryderiusz.kdungeonbuilder.door.Door;
@@ -12,6 +12,7 @@ import me.kryniowesegryderiusz.kdungeonbuilder.tile.TileComposite;
 import me.kryniowesegryderiusz.kdungeonbuilder.tile.TileComposite.Tile;
 import me.kryniowesegryderiusz.kdungeonbuilder.tile.TileComposite.TileFlag;
 import me.kryniowesegryderiusz.kdungeonbuilder.tile.TileList;
+import me.kryniowesegryderiusz.kdungeonbuilder.utils.RandomSelector;
 
 public class DungeonBuilder {
 
@@ -25,6 +26,8 @@ public class DungeonBuilder {
 	private ArrayList<TileComposite> tileTemplates = new ArrayList<TileComposite>();
 	
 	private TileComposite startTile;
+	
+	protected Random rand = new Random();
 
 	public DungeonBuilder setMinTiles(int minTiles) {
 		this.minTiles = minTiles;
@@ -45,6 +48,12 @@ public class DungeonBuilder {
 		this.startTile = tile;
 		return this;
 	}
+	
+	public DungeonBuilder setSeed(long seed) {
+		rand.setSeed(seed);
+		if (isDebug()) logDebug("Setting seed to " + seed);
+		return this;
+	}
 
 	/*
 	 * Builder
@@ -58,7 +67,7 @@ public class DungeonBuilder {
 	
 	private int wave;
 
-	public DungeonBuilder build() {
+	public DungeonBuilder build() throws CantFitTileCompositeException {
 		generatedTiles = new TileList();
 		waveTiles = new TileList();
 		generatedAmount = 0;
@@ -67,7 +76,7 @@ public class DungeonBuilder {
 		generatedTiles.addTile(startTile);
 		waveTiles.addTile(startTile);
 		
-		logDebug("DungeonBuilder prepared");
+		if (isDebug()) logDebug("DungeonBuilder prepared");
 		
 		doWave();
 		
@@ -76,30 +85,35 @@ public class DungeonBuilder {
 	
 	TileList newWave = new TileList();
 	
-	public void doWave() {
-		logDebug("[--WAVE--] Creating wave " + wave);
+	private void doWave() throws CantFitTileCompositeException {
+		if (isDebug()) logDebug("[--WAVE--] Creating wave " + wave);
+		
+		//Getting all tiles to fill and drawing matching TileComposite
 		for (TileComposite composite : waveTiles.getAll()) {
-			logDebug(composite.getCompositeCoordinates().toString() + ": Creating neighbours");
+			if (isDebug()) logDebug(composite.getCompositeCoordinates().toString() + ": Creating neighbours");
 			for (Tile t : composite.getTiles().getBorderTiles()) {
 				for (Door d : t.getDoors().getDoors()) {
 					if (generatedAmount <= this.maxTiles) {
 						Coordinates borderingCoordinates = t.getCoordinates().clone().moveByDoor(d);
-						logDebug(composite.getCompositeCoordinates().toString() +": New border found: " +  borderingCoordinates.toString());
+						if (isDebug()) logDebug(composite.getCompositeCoordinates().toString() +": New border found: " +  borderingCoordinates.toString());
 						if (generatedTiles.getByCoordinates(borderingCoordinates) == null && newWave.getByCoordinates(borderingCoordinates) == null) {
-							logDebug(composite.getCompositeCoordinates().toString() +": Nothing yet at " +  borderingCoordinates.toString());
+							if (isDebug()) logDebug(composite.getCompositeCoordinates().toString() +": Nothing yet at " +  borderingCoordinates.toString());
 							TileComposite drawnComposite = drawTileComposite(borderingCoordinates, d, false);
-							newWave.addTile(drawnComposite);
-							generatedAmount++;
-						} else logDebug(composite.getCompositeCoordinates().toString() +": Tile already generated at " +  borderingCoordinates.toString());
+							if (drawnComposite != null) {
+								newWave.addTile(drawnComposite);
+								generatedAmount++;
+							}
+						} else if (isDebug()) logDebug(composite.getCompositeCoordinates().toString() +": Tile already generated at " +  borderingCoordinates.toString());
 					}
 				}
 			}
 		}
 		
+		//Ending generation or restarting it
 		if (newWave.getAll().isEmpty()) {
-			logDebug("No new tiles created, ending generation");
+			if (isDebug()) logDebug("No new tiles created, ending generation");
 			if (generatedTiles.getAll().size() < this.minTiles) {
-				logDebug("Not enough tiles! Restarting!");
+				if (isDebug()) logDebug("Not enough tiles! Restarting!");
 				build();
 			}
 			
@@ -108,6 +122,7 @@ public class DungeonBuilder {
 			return;
 		}
 		
+		//Preparing next wave if not ended
 		generatedTiles.addTiles(newWave.getAll());
 		waveTiles = newWave;
 		newWave = new TileList();
@@ -122,73 +137,74 @@ public class DungeonBuilder {
 	 * @param leadingDoor - if null tiles with size higher than 1x1 wont be adjusted (basically its eliminating this)
 	 * @param closing - should it leave doors open for new tiles
 	 * @return
+	 * @throws CantFitTileCompositeException 
 	 */
-	public TileComposite drawTileComposite(Coordinates coordinates, Door leadingDoor, boolean closing) {
+	private TileComposite drawTileComposite(Coordinates coordinates, Door leadingDoor, boolean closing) throws CantFitTileCompositeException {
 		
-		logDebug(coordinates.toString() + ": Generating tile");
+		if (isDebug()) logDebug(coordinates.toString() + ": Generating tile");
 		
-		ArrayList<TileComposite> possibilities = new ArrayList<TileComposite>();
+		if (generatedTiles.getByCoordinates(coordinates) != null) {
+			if (isDebug()) logDebug(coordinates.toString() + ": Coordinates already generated! There is:" + generatedTiles.getByCoordinates(coordinates).toString());
+			return null;
+		}
+		
+		HashMap<TileComposite, Integer> possibilitiesWithWeights = new HashMap<TileComposite, Integer>();
 		
 		for (TileComposite template : tileTemplates) {
 			
-			logDebug(coordinates.toString() + ": Generating tile: CHECKING " + template.toString());
+			if (isDebug()) logDebug(coordinates.toString() + ": 	Generating tile: Checking " + template.getId() + " " + template.toString());
 			
 			Coordinates coordinatesClone = coordinates.clone();
 			
 			//sprawdzanie kazdej mozliwosci wzgledem boku
-			int moveNLoop = 0;
-			int moveWLoop = 0;
+			int moveNZLoop = 0;
+			int moveNXLoop = 0;
+			
 			
 			if (leadingDoor != null) {
-				if (leadingDoor == Door.N) {
-					coordinatesClone.moveByDoor(leadingDoor, (template.getSizeZ()-1));
-					moveWLoop = template.getSizeX()-1;
-					logDebug(coordinates.toString() + ": Generating tile: Leading door N " + coordinates.toString() + " -> " + coordinatesClone.toString() + " FOR " + template.toString());
-				}
-				
-				if (leadingDoor == Door.S) {
-					moveWLoop = template.getSizeX()-1;
-				}
-				
-				if (leadingDoor == Door.W) {
-					coordinatesClone.moveByDoor(leadingDoor, (template.getSizeX()-1));
-					moveNLoop = template.getSizeZ()-1;
-					logDebug(coordinates.toString() + ": Generating tile: Leading door W " + coordinates.toString() + " -> " + coordinatesClone.toString() + " FOR " + template.toString());
-				}
-				
-				if (leadingDoor == Door.E) {
-					moveNLoop = template.getSizeZ()-1;
+				if (isDebug()) logDebug(coordinates.toString() + ": 		Generating tile: LeadingDoor check for " + leadingDoor);
+				if (leadingDoor == Door.POSITIVE_X) {
+					moveNZLoop = template.getSizeZ() - 1;
+				} else if (leadingDoor == Door.POSITIVE_Z) {
+					moveNXLoop = template.getSizeX() -1;
+				} else if (leadingDoor == Door.NEGATIVE_X) {
+					coordinatesClone.moveByDoor(leadingDoor, template.getSizeX()-1);
+					moveNZLoop = template.getSizeZ() -1;
+					if (isDebug()) logDebug(coordinates.toString() + ": 			Generating tile: Leading door " + leadingDoor + " " + coordinates.toString() + " -> " + coordinatesClone.toString() + " FOR " + template.toString());
+				} else if (leadingDoor == Door.NEGATIVE_Z) {
+					coordinatesClone.moveByDoor(leadingDoor, template.getSizeZ()-1);
+					moveNXLoop = template.getSizeX() -1;
+					if (isDebug()) logDebug(coordinates.toString() + ": 			Generating tile: Leading door " + leadingDoor + " " + coordinates.toString() + " -> " + coordinatesClone.toString() + " FOR " + template.toString());
 				}
 			}
 			
-			logDebug(coordinates.toString() + ": Generating tile: moveNLoop-" + moveNLoop+" moveWLoop-"+moveWLoop);
+			if (isDebug()) logDebug(coordinates.toString() + ": 		Generating tile: moveNZLoop-" + moveNZLoop+" moveNXLoop-"+moveNXLoop);
 			
-			for (int moveN = 0 ; moveN <= moveNLoop; moveN++) {
-				for (int moveW = 0 ; moveW <= moveWLoop; moveW++) {
+			for (int moveNZ = 0 ; moveNZ <= moveNZLoop; moveNZ++) {
+				for (int moveNX = 0 ; moveNX <= moveNXLoop; moveNX++) {
 					
 					//testowy kompozyt w miejscu generowania
 					TileComposite clone = template.clone();
 					Coordinates finalCoordinates = coordinatesClone.clone();
 					
-					finalCoordinates.moveByDoor(Door.N, moveN);
-					finalCoordinates.moveByDoor(Door.W, moveW);
+					finalCoordinates.moveByDoor(Door.NEGATIVE_X, moveNX);
+					finalCoordinates.moveByDoor(Door.NEGATIVE_Z, moveNZ);
 					
 					clone.changeCoordinates(finalCoordinates);
 					
 					boolean doReturn = false;
 					
-					logDebug(coordinates.toString() + ": Generating tile: Checking in:" + clone.toString());
+					if (isDebug()) logDebug(coordinates.toString() + ": 			Generating tile: Checking in:" + clone.toString());
 					
 					if (clone.getSizeX() > 1 || clone.getSizeZ() > 1) {
-						logDebug(coordinates.toString() + ": Generating tile: Size check:" + clone.toString());
+						if (isDebug()) logDebug(coordinates.toString() + ": 				Generating tile: Size check:" + clone.toString());
 						//sprawdzenie, czy sie zmiesci
-						//nie dziala do kladnie tak, jakby moglo, bo nie sa przesuwane te duże
 						tilesLoop:
 						for (Tile[] tt : clone.getTiles().getTiles()) {
 							for (Tile t : tt) {
-								logDebug(coordinatesClone.toString() + ": Generating tile: Size check:" + clone.getCompositeCoordinates().toString() + ": Checking " + t.getCoordinates().toString());
+								if (isDebug()) logDebug(coordinatesClone.toString() + ": 					Generating tile: Size check:" + clone.getCompositeCoordinates().toString() + ": Checking " + t.getCoordinates().toString());
 								if (generatedTiles.getByCoordinates(t.getCoordinates()) != null || newWave.getByCoordinates(t.getCoordinates()) != null) {
-									logDebug(t.getCoordinates().toString() + ": Generating tile:  Size check:" + clone.getSizeX() + " " + clone.getSizeZ() + " sie nie zmiesci");
+									if (isDebug()) logDebug(t.getCoordinates().toString() + ": 					Generating tile: Size check: " + clone.getSizeX() + "x" + clone.getSizeZ() + " sie nie zmiesci");
 									doReturn = true;
 									break tilesLoop;
 								}
@@ -199,13 +215,15 @@ public class DungeonBuilder {
 					if (doReturn)
 						continue;
 					
-					logDebug(coordinates.toString() + ": Generating tile: Door check: " + clone.toString());
+					if (isDebug()) logDebug(coordinates.toString() + ": 				Generating tile: Door check: " + clone.toString());
 					//sprawdzanie, czy sie zgadzają drzwi
 					doorCheckLoop:
-					for(Tile t : clone.getTiles().getBorderTiles()) {
+					for(Tile borderTile : clone.getTiles().getBorderTiles()) {
 						//dla kazdego elementu sprawdzam po kazdej stronie co jes
 						for (Door side : Door.values()) {
-							Coordinates sideCoordinates = t.getCoordinates().clone().moveByDoor(side);
+							Coordinates sideCoordinates = borderTile.getCoordinates().clone().moveByDoor(side);
+							
+							if (isDebug()) logDebug(coordinates.toString() + ": 					Generating tile: Door check: Side:" + side + " | sideCoordinates: " + sideCoordinates + " | borderTile: " + borderTile.toString());
 							
 							//sprawdzamy tylko tilesy, ktore nie wchodzą w skład kompozytu
 							if (clone.getTiles().getTile(sideCoordinates) == null) {
@@ -219,30 +237,27 @@ public class DungeonBuilder {
 									Tile neighbour = neighbourComposite.getTiles().getTile(sideCoordinates);
 									
 									if (neighbour != null) {
-										if (t.getDoors().contains(side) && !neighbour.getDoors().contains(side.getOpposite())) {
+										if (borderTile.getDoors().contains(side) && !neighbour.getDoors().contains(side.getOpposite())) {
 											doReturn = true;
-											logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + ": " + t.getCoordinates().toString() + " " + side + " ma drzwi, a " + neighbour.getCoordinates().toString() + " nie ma " + side.getOpposite());
+											if (isDebug()) logDebug(coordinates.toString() + ": 						Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + ": " + borderTile.getCoordinates().toString() + " " + side + " ma drzwi, a " + neighbour.getCoordinates().toString() + " nie ma " + side.getOpposite());
 											break doorCheckLoop;
 										}
-										if (!t.getDoors().contains(side) && neighbour.getDoors().contains(side.getOpposite())) {
+										if (!borderTile.getDoors().contains(side) && neighbour.getDoors().contains(side.getOpposite())) {
 											doReturn = true;
-											logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + ": " + t.getCoordinates().toString() + " " + side + " nie ma drzwi, a " + neighbour.getCoordinates().toString() + " ma " + side.getOpposite());
+											if (isDebug()) logDebug(coordinates.toString() + ": 						Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + ": " + borderTile.getCoordinates().toString() + " " + side + " nie ma drzwi, a " + neighbour.getCoordinates().toString() + " ma " + side.getOpposite());
 											break doorCheckLoop;
 										}										
-										logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + " drzwi gituwa z " + t.getCoordinates().toString());
-									} else logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + " nie ma siada (tile) ERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRROR TAK NIE POWINNO BYĆ CHUJ W DUPIE LZLALALALALA!");
+										if (isDebug()) logDebug(coordinates.toString() + ": 						Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + " drzwi gituwa z " + borderTile.getCoordinates().toString());
+									} else if (isDebug()) logDebug(coordinates.toString() + ": 							Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + " nie ma sasiada (tile) ERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRROR TAK NIE POWINNO BYĆ CHUJ W DUPIE LZLALALALALA!");
 								} else {
-									if (!closing)
-										logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + " nie ma siada (kompozyt)!");
-									else {
-										if (t.getDoors().contains(side)) {
-											logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + " nie ma siada (kompozyt), a ma drzwi, a to CLOSING, to odpada!");
-											doReturn = true;
-											break doorCheckLoop;
-										}
+									if (isDebug()) logDebug(coordinates.toString() + ": 						Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + " nie ma sasiada (kompozyt)!");
+									if (closing && borderTile.getDoors().contains(side)) {
+										if (isDebug()) logDebug(coordinates.toString() + ": 						Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + " nie ma sasiada (kompozyt), a ma drzwi, a to CLOSING, to odpada!");
+										doReturn = true;
+										break doorCheckLoop;
 									}
 								}
-							} else logDebug(coordinates.toString() + ": Generating tile: Door check:" + t.getCoordinates().toString() + ": " + sideCoordinates.toString() + " jest wewnatrz!");
+							} else if (isDebug()) logDebug(coordinates.toString() + ": 						Generating tile: Door check:" + borderTile.getCoordinates().toString() + ": " + sideCoordinates.toString() + " jest wewnatrz!");
 
 							
 						}
@@ -252,7 +267,8 @@ public class DungeonBuilder {
 					if (doReturn)
 						continue;		
 					
-					possibilities.add(clone);
+					weightByTileCompositeID.putIfAbsent(clone.getId(), clone.getWeight());
+					possibilitiesWithWeights.put(clone, weightByTileCompositeID.get(clone.getId()));
 					
 				}
 			}
@@ -260,19 +276,14 @@ public class DungeonBuilder {
 		
 		TileComposite drawn;
 		
-		if (possibilities.size() != 0) {
+		if (possibilitiesWithWeights.size() != 0) {
+
+			if (isDebug()) logDebug(coordinates.toString() + ": Generating tile: Weights map: " + possibilitiesWithWeights);
+			drawn = RandomSelector.weighted(possibilitiesWithWeights.keySet(), s -> possibilitiesWithWeights.get(s)).next(rand);
+			weightByTileCompositeID.put(drawn.getId(), (int) Math.ceil((double) weightByTileCompositeID.get(drawn.getId()) / 2));
 			
-			int amnt=0;
-			for (TileComposite pos : possibilities) {
-				if (pos.getSizeX() > 1 || pos.getSizeZ() > 1) {
-					amnt++;
-				}
-			}
-			logDebug(coordinates.toString() + ": Generating tile: W losowaniu było " + amnt + " dużych tilesów");
-			drawn = possibilities.get(new Random().nextInt(possibilities.size())).clone();
 		} else {
-			drawn = new TileComposite(1,1);
-			drawn.getFlags().add(TileFlag.ERR);
+			throw new CantFitTileCompositeException("Cannot fit any possible TileComposite to " + coordinates.toString());
 		}
 		
 		drawn.setNo(generatedAmount+1);
@@ -281,23 +292,24 @@ public class DungeonBuilder {
 		if (closing)
 			drawn.getFlags().add(TileFlag.CLOSING);
 		
-		logDebug(coordinates.toString() + ": Generating tile: Drawn: " + drawn.toString() + " No. " + drawn.getNo() + " Wave: " + wave);
+		if (isDebug()) logDebug(coordinates.toString() + ": Generating tile: Drawn: " + drawn.toString() + " No. " + drawn.getNo() + " Wave: " + wave);
 		
 		return drawn;
 	}
 	
+	private HashMap<String, Integer> weightByTileCompositeID = new HashMap<String, Integer>();
 	
 	
-	boolean ended = false;
+	private boolean ended = false;
 	
-	public void end() {
+	private void end() throws CantFitTileCompositeException {
 		
 		if (ended) {
-			logDebug("DungeonBuilder already closed");
+			if (isDebug()) logDebug("DungeonBuilder already closed");
 			return;
 		}
 		
-		logDebug("Closing");
+		if (isDebug()) logDebug("Closing");
 		
 		CoordinatesList freeTiles = new CoordinatesList();
 		
@@ -307,25 +319,40 @@ public class DungeonBuilder {
 					Coordinates sideCoordinates = borderTile.getCoordinates().clone().moveByDoor(door);
 					if (generatedTiles.getByCoordinates(sideCoordinates) == null) {
 						freeTiles.addCoordinate(sideCoordinates);
-						logDebug("Closing: " + sideCoordinates.toString() + " needs closure!");
+						if (isDebug()) logDebug("Closing: " + sideCoordinates.toString() + " needs closure!");
 					}
 				}
 			}
 		}
 		
-		logDebug("Closing: " + freeTiles.getAll().size() + " coordinates needs closure!");
+		if (isDebug()) logDebug("Closing: " + freeTiles.getAll().size() + " coordinates needs closure!");
 		
 		wave = -10;
 		for (Coordinates tc : freeTiles.getAll()) {
-			generatedTiles.addTile(this.drawTileComposite(tc, null, true));
+			generatedAmount++;
+			TileComposite composite = this.drawTileComposite(tc, null, true);
+			if (composite != null)
+				generatedTiles.addTile(composite);
 		}
 		
 		ended = true;
 		
 	}
 	
+	public boolean isDebug() {
+		return true;
+	}
+	
 	public void logDebug(String debug) {
 		System.out.println(debug);
+	}
+	
+	public class CantFitTileCompositeException extends Exception {
+		public CantFitTileCompositeException(String string) {
+			// TODO Auto-generated constructor stub
+		}
+
+		private static final long serialVersionUID = 1L;
 	}
 
 }

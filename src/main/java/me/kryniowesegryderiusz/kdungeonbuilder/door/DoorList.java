@@ -36,5 +36,9 @@ public class DoorList {
 		}
 		doors = newDoors;
 	}
+	
+	public String toString() {
+		return "Doors: " + doors.toString();
+	}
 
 }

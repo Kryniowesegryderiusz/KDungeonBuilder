@@ -8,7 +8,6 @@ import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
-import java.io.IOException;
 import java.util.ArrayList;
 
 import javax.swing.JButton;
@@ -42,7 +41,9 @@ public class GUI {
 	}
 	
 	public class PaintPanel extends JPanel {
-		
+
+		private static final long serialVersionUID = 1L;
+
 		TileList composites;
 		
 		JButton btn = new JButton("Draw");
@@ -53,12 +54,34 @@ public class GUI {
 			btn.addActionListener(new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent e) {
-					composites = DungeonSim.getDungeonBuilder().getGeneratedTiles();
+					DungeonBuilder db;
+					
+					db = DungeonSim.getDungeonBuilder();
+					
+					try {
+						db.build();
+					} catch (Exception ex) {
+						ex.printStackTrace();
+					}
+					
+					composites = db.getGeneratedTiles();
+					
 					repaint();
 				}
 			});
 			
-			composites = DungeonSim.getDungeonBuilder().getGeneratedTiles();
+			DungeonBuilder db;
+			
+			db = DungeonSim.getDungeonBuilder();
+			
+			try {
+				db.build();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+			composites = db.getGeneratedTiles();
+			
 			repaint();
 		}
 		
@@ -101,8 +124,14 @@ public class GUI {
 			
 			for (TileComposite tc : composites.getAll()) {
 				
-				int startX = tc.getCompositeCoordinates().getX();
+				if (tc.getCompositeCoordinates() == null) {
+					System.out.println(tc.toString() + " has null coordinates!");
+					continue;
+				}
+				
 				int startZ = tc.getCompositeCoordinates().getZ();
+				int startX = tc.getCompositeCoordinates().getX();
+				
 				
 				//System.out.println("Painting Composite at " + startX + "," + startZ + " with sizes " + tc.getSizeX() + "x," + tc.getSizeZ()+"z");
 
@@ -115,54 +144,55 @@ public class GUI {
 					g.setColor(Color.MAGENTA);
 				if (tc.getFlags().contains(TileFlag.CLOSING))
 					g.setColor(Color.GRAY);
-				fillFixed(g2, startX, startZ, tc.getSizeX()*TileComposite.STANDARD_LENGTH, tc.getSizeZ()*TileComposite.STANDARD_LENGTH);
+				fillFixed(g2, startZ, startX, tc.getSizeZ()*TileComposite.STANDARD_LENGTH, tc.getSizeX()*TileComposite.STANDARD_LENGTH);
 
 				
 				g2.setColor(Color.YELLOW);
 				for (Tile[] tt : tc.getTiles().getTiles()) {
 					for (Tile t : tt) {
 						//System.out.println("Drawing doors " + t.getDoors().getDoors() + " for relative " + t.getRelativeX() + ","+t.getRelativeZ());
-						if (t.getDoors().contains(Door.N)) {
-							int x = t.getCoordinates().getX() + halfTile - doorSize;
-							int z = t.getCoordinates().getZ();
-							int sizex = 2*doorSize+1;
-							int sizez = doorSize;
-									
-							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
-							fillFixed(g2, x, z, sizex, sizez);
-						}
-						if (t.getDoors().contains(Door.S)) {
-							int x = t.getCoordinates().getX() + halfTile - doorSize;
-							int z = t.getCoordinates().getZ() + TileComposite.STANDARD_LENGTH - doorSize;
-							int sizex = 2*doorSize+1;
-							int sizez = doorSize;
-									
-							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
-							fillFixed(g2, x, z, sizex, sizez);
-						}
-						if (t.getDoors().contains(Door.E)) {
-							int x = t.getCoordinates().getX() + TileComposite.STANDARD_LENGTH - doorSize;
+						if (t.getDoors().contains(Door.NEGATIVE_X)) {
+							
 							int z = t.getCoordinates().getZ() + halfTile - doorSize;
-							int sizex = doorSize;
-							int sizez = 2*doorSize+1;
-									
-							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
-							fillFixed(g2, x, z, sizex, sizez);
-						}
-						if (t.getDoors().contains(Door.W)) {
 							int x = t.getCoordinates().getX();
-							int z = t.getCoordinates().getZ() + halfTile - doorSize;
-							int sizex = doorSize;
 							int sizez = 2*doorSize+1;
+							int sizex = doorSize;
 									
 							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
-							fillFixed(g2, x, z, sizex, sizez);
+							fillFixed(g2, z, x, sizez, sizex);
+						}
+						if (t.getDoors().contains(Door.POSITIVE_X)) {
+							int z = t.getCoordinates().getZ() + halfTile - doorSize;
+							int x = t.getCoordinates().getX() + TileComposite.STANDARD_LENGTH - doorSize;
+							int sizez = 2*doorSize+1;
+							int sizex = doorSize;
+									
+							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
+							fillFixed(g2, z, x, sizez, sizex);
+						}
+						if (t.getDoors().contains(Door.POSITIVE_Z)) {
+							int z = t.getCoordinates().getZ() + TileComposite.STANDARD_LENGTH - doorSize;
+							int x = t.getCoordinates().getX() + halfTile - doorSize;
+							int sizez = doorSize;
+							int sizex = 2*doorSize+1;
+									
+							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
+							fillFixed(g2, z, x, sizez, sizex);
+						}
+						if (t.getDoors().contains(Door.NEGATIVE_Z)) {
+							int z = t.getCoordinates().getZ();
+							int x = t.getCoordinates().getX() + halfTile - doorSize;
+							int sizez = doorSize;
+							int sizex = 2*doorSize+1;
+									
+							//System.out.println("Drawing S as " + x + " " + z + " " + sizex + " " + sizez);
+							fillFixed(g2, z, x, sizez, sizex);
 						}
 					}
 				}
 				
 				g.setColor(Color.BLUE);
-				drawFixed(g2, startX, startZ, tc.getSizeX()*TileComposite.STANDARD_LENGTH, tc.getSizeZ()*TileComposite.STANDARD_LENGTH);
+				drawFixed(g2, startZ, startX, tc.getSizeZ()*TileComposite.STANDARD_LENGTH, tc.getSizeX()*TileComposite.STANDARD_LENGTH);
 
 				
 				/*
@@ -182,10 +212,11 @@ public class GUI {
 				
 				
 				g2.setColor(Color.BLACK);
-				drawPosition(g2, startX, startZ);
+				drawPosition(g2, startZ, startX);
 				
-				texts.add(new MapText(startX + (tc.getSizeX()*TileComposite.STANDARD_LENGTH/2), startZ + (tc.getSizeZ()*TileComposite.STANDARD_LENGTH/4), "no" + tc.getNo() + "w" + tc.getWave()));
-				
+				texts.add(new MapText(startZ + (tc.getSizeZ()*TileComposite.STANDARD_LENGTH/2), startX + (tc.getSizeX()*TileComposite.STANDARD_LENGTH/4), "no" + tc.getNo() + "w" + tc.getWave()));
+				texts.add(new MapText(startZ + (tc.getSizeZ()*TileComposite.STANDARD_LENGTH/2), startX + (tc.getSizeX()*TileComposite.STANDARD_LENGTH/2), tc.getId()));
+
 				/*
 				try {
 					Thread.sleep(250);
@@ -203,20 +234,27 @@ public class GUI {
 
 		}
 		
+		int x0 = 500;
+		int y0 = 200;
+		
+		//Depends on X,Y sheet
 		private void fillFixed(Graphics2D g, int startX, int startY, int width, int height) {
-			g.fillRect(startX+500, startY+500, width, height);
+			g.fillRect(startX+x0, startY+y0, width, height);
 		}
 		
+		//Depends on X,Y sheet
 		private void drawFixed(Graphics2D g, int startX, int startY, int width, int height) {
-			g.drawRect(startX+500, startY+500, width, height);
+			g.drawRect(startX+x0, startY+y0, width, height);
 		}
 		
+		//Depends on X,Y sheet
 		private void drawPosition(Graphics2D g, int startX, int startY) {
-			g.drawString(startX+","+startY, startX-10+500, startY+500);
+			g.drawString(startX+","+startY, startX-10+x0, startY+y0);
 		}
 		
+		//Depends on X,Y sheet
 		private void drawText(Graphics2D g, int startX, int startY, String text) {
-			g.drawString(text, startX-10+500, startY+500);
+			g.drawString(text, startX-10+x0, startY+y0);
 		}
 	}
 	

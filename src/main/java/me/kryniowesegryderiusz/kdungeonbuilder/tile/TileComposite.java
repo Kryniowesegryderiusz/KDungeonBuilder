@@ -1,7 +1,6 @@
 package me.kryniowesegryderiusz.kdungeonbuilder.tile;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -15,15 +14,21 @@ import me.kryniowesegryderiusz.kdungeonbuilder.door.DoorList;
  * @author user
  */
 public class TileComposite {
-
-	@Getter
-	@Setter
-	int wave = -1;
-	@Getter
-	@Setter
-	int no = -1;
-
+	
 	public static int STANDARD_LENGTH = 45;
+	
+	@Getter
+	private String id;
+	
+	@Getter
+	private int weight;
+
+	@Getter
+	@Setter
+	private int wave = -1;
+	@Getter
+	@Setter
+	private int no = -1;
 
 	public enum TileFlag {
 		START, END, ERR, CLOSING
@@ -44,12 +49,36 @@ public class TileComposite {
 	private Tiles tiles;
 
 	@Getter
-	Coordinates compositeCoordinates;
-
-	public TileComposite(int sizeX, int sizeZ) {
+	private Coordinates compositeCoordinates;
+	
+	public TileComposite() {
+		
+	}
+	
+	public TileComposite init(String id, int sizeZ, int sizeX, int weight) {
+		this.sizeZ = sizeZ;
+		this.sizeX = sizeX;
+		this.id = id;
+		this.weight = weight;
+		tiles = new Tiles();
+		return this;
+	}
+	
+	public TileComposite setId(String id) {
+		this.id = id;
+		return this;
+	}
+	
+	public TileComposite setWeight(int weight) {
+		this.weight = weight;
+		return this;
+	}
+	
+	public TileComposite setSize(int sizeX, int sizeZ) {
 		this.sizeX = sizeX;
 		this.sizeZ = sizeZ;
 		tiles = new Tiles();
+		return this;
 	}
 
 	/**
@@ -59,7 +88,7 @@ public class TileComposite {
 	 * @return
 	 */
 	public TileComposite changeCoordinates(Coordinates tc) {
-		this.changeCoordinates(tc.getX(), tc.getZ());
+		this.changeCoordinates(tc.getZ(), tc.getX());
 		return this;
 	}
 
@@ -70,15 +99,15 @@ public class TileComposite {
 	 * @param z
 	 * @return
 	 */
-	public TileComposite changeCoordinates(int x, int z) {
-		compositeCoordinates = new Coordinates(x, z);
-
-		for (int nox = 0; nox < sizeX; nox++) {
-			for (int noz = 0; noz < sizeZ; noz++) {
-				tiles.getTiles()[nox][noz].initCoordinates(compositeCoordinates.getX() + nox * STANDARD_LENGTH,
-						compositeCoordinates.getZ() + noz * STANDARD_LENGTH);
+	public TileComposite changeCoordinates(int z, int x) {
+		compositeCoordinates = new Coordinates(z, x);
+		
+		for (int noz = 0; noz < sizeZ; noz++) {
+			for (int nox = 0; nox < sizeX; nox++) {
+				tiles.getTiles()[noz][nox].initCoordinates(compositeCoordinates.getZ() + noz * STANDARD_LENGTH, compositeCoordinates.getX() + nox * STANDARD_LENGTH);
 			}
 		}
+
 		return this;
 	}
 	
@@ -89,42 +118,69 @@ public class TileComposite {
 	
 	public TileComposite rotate90Deg() {
 		this.tiles.rotate90Deg();
+	    
+	    //swap sizes
+	    int temp = sizeX;
+	    sizeX = sizeZ;
+	    sizeZ = temp;
+	    
+		this.onRotate();
+		return this;
+	}
+
+	/**
+	 * Function for overriding in dependent projects
+	 */
+	public void onRotate(){}
+	
+	public TileComposite addDoor(int z, int x, Door door) {
+		tiles.getTiles()[z][x].getDoors().addDoor(door);
 		return this;
 	}
 	
-	public TileComposite addDoor(int x, int z, Door door) {
-		tiles.getTiles()[x][z].getDoors().addDoor(door);
-		return this;
-	}
-	
-	public TileComposite addDoor(int x, int z, Door... doors) {
+	public TileComposite addDoor(int z, int x, Door... doors) {
 		for (Door door : doors) {
-			addDoor(x,z,door);
+			addDoor(z,x,door);
 		}
 		return this;
 	}
 
 	public String toString() {
-		String s = "SizeX: " + this.sizeX + " | SizeZ: " + this.sizeZ;
+		String s = "TileComposite: [Id: " + this.id + " | SizeZ: " + this.sizeZ + " | SizeX: " + this.sizeX + " | Weight: " + this.weight;
 		if (this.compositeCoordinates != null)
-			s = s + " XZ: " + this.compositeCoordinates.toString();
-		return s;
+			s = s + " Coordinates: " + this.compositeCoordinates.toString();
+		
+		if (tiles != null)
+			s += " Tiles: [" + tiles.toString() + "]";
+		return s + "]";
 	}
 
 	public TileComposite clone() {
-		TileComposite nc = new TileComposite(sizeX, sizeZ);
-
-		for (int nox = 0; nox < sizeX; nox++) {
-			for (int noz = 0; noz < sizeZ; noz++) {
-				nc.getTiles().getTiles()[nox][noz].getDoors()
-						.addDoors(tiles.getTiles()[nox][noz].getDoors().getDoors());
+		TileComposite nc = this.getTileCompositeCloneObject();
+		
+		nc.init(id, sizeZ, sizeX, weight);
+		nc.setRotatable(rotatable);
+		
+		for (int noz = 0; noz < sizeZ; noz++) {
+			for (int nox = 0; nox < sizeX; nox++) {
+				nc.getTiles().getTiles()[noz][nox].getDoors().addDoors(tiles.getTiles()[noz][nox].getDoors().getDoors());
 			}
 		}
 
 		if (compositeCoordinates != null)
-			nc.changeCoordinates(compositeCoordinates.getX(), compositeCoordinates.getZ());
+			nc.changeCoordinates(compositeCoordinates.getZ(), compositeCoordinates.getX());
 
 		return nc;
+	}
+	
+	/**
+	 * Function for extencion purposes
+	 * @param sizeX
+	 * @param sizeZ
+	 * @return
+	 */
+	public TileComposite getTileCompositeCloneObject() {
+		return new TileComposite();
 	}
 
 	public class Tiles {
@@ -133,13 +189,14 @@ public class TileComposite {
 		private Tile[][] tiles;
 
 		public Tiles() {
-			tiles = new Tile[sizeX][sizeZ];
+			tiles = new Tile[sizeZ][sizeX];
 
-			for (int nox = 0; nox < sizeX; nox++) {
-				for (int noz = 0; noz < sizeZ; noz++) {
-					tiles[nox][noz] = new Tile(nox, noz);
+			for (int noz = 0; noz < sizeZ; noz++) {
+				for (int nox = 0; nox < sizeX; nox++) {
+					tiles[noz][nox] = new Tile(noz, nox);
 				}
 			}
+			
 		}
 
 		public Tile getTile(Coordinates tc) {
@@ -158,8 +215,7 @@ public class TileComposite {
 
 			for (Tile[] tt : tiles) {
 				for (Tile t : tt) {
-					if (t.getRelativeX() == 0 || t.getRelativeZ() == 0 || t.getRelativeX() == sizeX - 1
-							|| t.getRelativeZ() == sizeZ - 1)
+					if (t.getRelativeZ() == 0 || t.getRelativeX() == 0 || t.getRelativeZ() == sizeZ - 1 || t.getRelativeX() == sizeX - 1)
 						if (!borders.contains(t))
 							borders.add(t);
 				}
@@ -178,24 +234,36 @@ public class TileComposite {
 		        	rotated[c][M-1-r].getDoors().rotate90Deg();
 		        }
 		    }
-		    int temp = sizeX;
-		    sizeX = sizeZ;
-		    sizeZ = temp;
 		    this.tiles = rotated;
+		}
+		
+		public String toString() {
+			String s = "";
+			for (Tile[] tt : tiles) {
+				for (Tile t : tt) {
+					s += " Tile:  [" + t.toString() + "]";
+				}
+			}
+			return s;
 		}
 
 	}
 
+	/**
+	 * Class user for storing specific information about one tile
+	 * Relative Z and relative X are relative coordinates inside TileComposite starting from TileComposite coordinates
+	 * z, x = 0, 1, 2, ...
+	 */
 	public class Tile {
 
 		@Getter
-		int relativeX;
-		@Getter
 		int relativeZ;
+		@Getter
+		int relativeX;
 
-		public Tile(int relativeX, int relativeZ) {
-			this.relativeX = relativeX;
+		public Tile(int relativeZ, int relativeX) {
 			this.relativeZ = relativeZ;
+			this.relativeX = relativeX;
 		}
 
 		@Getter
@@ -203,10 +271,13 @@ public class TileComposite {
 		@Getter
 		private DoorList doors = new DoorList();
 
-		public void initCoordinates(int x, int z) {
-			coordinates = new Coordinates(x, z);
+		public void initCoordinates(int z, int x) {
+			coordinates = new Coordinates(z, x);
+		}
+		
+		public String toString() {
+			return "relativeZ: " + relativeZ + " | relativeX " + relativeX + " | doors: " + doors.toString() + (coordinates != null ? " | coordinates: " + coordinates.toString() : "");
 		}
 
 	}
-
 }

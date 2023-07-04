@@ -6,16 +6,16 @@ import me.kryniowesegryderiusz.kdungeonbuilder.tile.TileComposite;
 
 public class Coordinates {
 	
-	@Getter private int x;
 	@Getter private int z;
+	@Getter private int x;
 	
-	public Coordinates(int x, int z) {
-		this.set(x, z);
+	public Coordinates(int z, int x) {
+		this.set(z, x);
 	}
 	
-	public Coordinates set(int x, int z) {
-		this.x = x;
+	public Coordinates set(int z, int x) {
 		this.z = z;
+		this.x = x;
 		return this;
 	}
 	
@@ -24,7 +24,7 @@ public class Coordinates {
 	}
 	
 	public Coordinates clone() {
-		return new Coordinates(x, z);
+		return new Coordinates(z, x);
 	}
 	
 	public Coordinates moveByDoor(Door door) {
@@ -32,20 +32,20 @@ public class Coordinates {
 	}
 	
 	public Coordinates moveByDoor(Door door, int amount) {
-		if (door == Door.N) {
-			z = z - (TileComposite.STANDARD_LENGTH*amount);
-		} else if (door == Door.S) {
-			z = z + (TileComposite.STANDARD_LENGTH*amount);
-		} else if (door == Door.W) {
-			x = x - (TileComposite.STANDARD_LENGTH*amount);
-		} else if (door == Door.E) {
+		if (door == Door.POSITIVE_X) {
 			x = x + (TileComposite.STANDARD_LENGTH*amount);
+		} else if (door == Door.NEGATIVE_X) {
+			x = x - (TileComposite.STANDARD_LENGTH*amount);
+		} else if (door == Door.POSITIVE_Z) {
+			z = z + (TileComposite.STANDARD_LENGTH*amount);
+		} else if (door == Door.NEGATIVE_Z) {
+			z = z - (TileComposite.STANDARD_LENGTH*amount);
 		}
 		return this;
 	}
 	
 	public String toString() {
-		return "[X: " + x + " Z: " + z + "]";
+		return "[Z: " + z + " X: " + x + "]";
 	}
 
 }

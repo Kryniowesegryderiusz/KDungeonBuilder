@@ -38,6 +38,7 @@ public class TileList {
 	}
 	
 	public TileList createAllVariants() {
+		
 		ArrayList<TileComposite> newTiles = new ArrayList<>();
 		
 		for (TileComposite tc : tiles) {
