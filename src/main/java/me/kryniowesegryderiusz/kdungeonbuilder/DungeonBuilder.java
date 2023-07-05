@@ -40,7 +40,7 @@ public class DungeonBuilder {
 	}
 
 	public DungeonBuilder addTileTemplates(TileList tileTemplates) {
-		this.tileTemplates.addAll(tileTemplates.createAllVariants().getAll());
+		this.tileTemplates.addAll(tileTemplates.clone().createAllVariants().getAll());
 		return this;
 	}
 	
@@ -79,6 +79,8 @@ public class DungeonBuilder {
 		if (isDebug()) logDebug("DungeonBuilder prepared");
 		
 		doWave();
+		
+		if (isDebug()) logDebug("DungeonBuilder completed");
 		
 		return this;
 	}
@@ -299,7 +301,6 @@ public class DungeonBuilder {
 	
 	private HashMap<String, Integer> weightByTileCompositeID = new HashMap<String, Integer>();
 	
-	
 	private boolean ended = false;
 	
 	private void end() throws CantFitTileCompositeException {
@@ -340,7 +341,7 @@ public class DungeonBuilder {
 	}
 	
 	public boolean isDebug() {
-		return true;
+		return false;
 	}
 	
 	public void logDebug(String debug) {
@@ -349,7 +350,7 @@ public class DungeonBuilder {
 	
 	public class CantFitTileCompositeException extends Exception {
 		public CantFitTileCompositeException(String string) {
-			// TODO Auto-generated constructor stub
+			super(string);
 		}
 
 		private static final long serialVersionUID = 1L;

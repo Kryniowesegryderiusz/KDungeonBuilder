@@ -61,6 +61,7 @@ public class GUI {
 					try {
 						db.build();
 					} catch (Exception ex) {
+						System.out.println(ex.getMessage());
 						ex.printStackTrace();
 					}
 					

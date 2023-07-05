@@ -56,4 +56,11 @@ public class TileList {
 		return this;
 	}
 	
+	public TileList clone() {
+		TileList copy = new TileList();
+		for (TileComposite tc : this.tiles)
+			copy.addTile(tc);
+		return copy;
+	}
+	
 }

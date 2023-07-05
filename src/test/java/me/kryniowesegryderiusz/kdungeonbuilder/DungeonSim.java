@@ -92,8 +92,13 @@ public class DungeonSim {
 				e.printStackTrace();
 			}
 			
-			setSeed(1686110511895L);
+			setSeed(System.currentTimeMillis());
 			
+		}
+		
+		@Override
+		public boolean isDebug() {
+			return true;
 		}
 		
 		@Override
